@@ -15,10 +15,11 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
   const [cargo, setCargo] = useState("");
   const [especialidad, setEspecialidad] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [email, setEmail] = useState("");
 
   const [tecnicoEditar, setTecnicoEditar] = useState<Personal | null>(null);
 
-  const handleCreatePersonal = (e: React.FormEvent) => {
+  const handleCreatePersonal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rolActual !== "admin") return;
 
@@ -28,20 +29,22 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
     }
 
     if (tecnicoEditar) {
-      StorageService.savePersonal({
+      await StorageService.savePersonal({
         id: tecnicoEditar.id,
         nombre,
         cargo,
         especialidad: especialidad || "General",
-        telefono
+        telefono,
+        email
       });
       setTecnicoEditar(null);
     } else {
-      StorageService.savePersonal({
+      await StorageService.savePersonal({
         nombre,
         cargo,
         especialidad: especialidad || "General",
         telefono,
+        email,
         activo: true
       });
     }
@@ -50,6 +53,7 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
     setCargo("");
     setEspecialidad("");
     setTelefono("");
+    setEmail("");
     onRefresh();
   };
 
@@ -59,6 +63,7 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
     setCargo(p.cargo);
     setEspecialidad(p.especialidad);
     setTelefono(p.telefono || "");
+    setEmail(p.email || "");
   };
 
   const handleCancelEdit = () => {
@@ -67,18 +72,19 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
     setCargo("");
     setEspecialidad("");
     setTelefono("");
+    setEmail("");
   };
 
-  const handleToggleEstado = (p: Personal) => {
+  const handleToggleEstado = async (p: Personal) => {
     if (rolActual !== "admin") return;
-    StorageService.savePersonal({
+    await StorageService.savePersonal({
       id: p.id,
       activo: !p.activo
     });
     onRefresh();
   };
 
-  const handleDeletePersonal = (p: Personal) => {
+  const handleDeletePersonal = async (p: Personal) => {
     if (rolActual !== "admin") return;
     const tieneAsignados = servicios.some(s => s.personal_asignado.some(pa => pa.id === p.id) && s.estado !== "completado" && s.estado !== "cancelado");
 
@@ -86,10 +92,10 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
       if (!confirm(`El tecnico ${p.nombre} tiene servicios activos agendados. Desea desactivarlo en lugar de eliminarlo?`)) {
         return;
       }
-      StorageService.savePersonal({ id: p.id, activo: false });
+      await StorageService.savePersonal({ id: p.id, activo: false });
     } else {
       if (confirm(`Desea eliminar permanentemente a ${p.nombre} del listado de personal?`)) {
-        StorageService.deletePersonal(p.id);
+        await StorageService.deletePersonal(p.id);
       }
     }
     onRefresh();
@@ -117,7 +123,7 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
             )}
           </div>
 
-          <form onSubmit={handleCreatePersonal} className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <form onSubmit={handleCreatePersonal} className="grid grid-cols-1 md:grid-cols-6 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre Completo *</label>
               <input
@@ -160,6 +166,17 @@ export const StaffView: React.FC<Props> = ({ personal, servicios, onRefresh, rol
                 placeholder="+56 9..."
                 value={telefono}
                 onChange={e => setTelefono(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Email (para avisos)</label>
+              <input
+                type="email"
+                placeholder="tecnico@empresa.cl"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>

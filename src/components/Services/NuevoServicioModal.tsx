@@ -96,7 +96,7 @@ export const NuevoServicioModal: React.FC<Props> = ({ isOpen, onClose, onSaved, 
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clienteNombre || !ubicacion || !fechaProgDate) {
       alert("Por favor complete los campos obligatorios (Cliente, Ubicacion y Fecha Programada).");
@@ -117,21 +117,26 @@ export const NuevoServicioModal: React.FC<Props> = ({ isOpen, onClose, onSaved, 
 
     const personalAsignado = personalList.filter(p => selectedPersonalIds.includes(p.id));
 
-    StorageService.saveServicio({
-      id: servicioEditar?.id,
-      cliente_nombre: clienteNombre,
-      cliente_contacto: clienteContacto,
-      ubicacion,
-      tipo_servicio: tipoServicio,
-      descripcion,
-      fecha_programada: isoProgramada,
-      fecha_real_inicio: isoRealInicio,
-      fecha_real_fin: isoRealFin,
-      estado,
-      prioridad,
-      observaciones,
+    try {
+      await StorageService.saveServicio({
+        id: servicioEditar?.id,
+        cliente_nombre: clienteNombre,
+        cliente_contacto: clienteContacto,
+        ubicacion,
+        tipo_servicio: tipoServicio,
+        descripcion,
+        fecha_programada: isoProgramada,
+        fecha_real_inicio: isoRealInicio,
+        fecha_real_fin: isoRealFin,
+        estado,
+        prioridad,
+        observaciones,
       personal_asignado: personalAsignado
-    });
+      });
+    } catch (err: any) {
+      alert(err.message || "No se pudo guardar el servicio.");
+      return;
+    }
 
     onSaved();
     onClose();

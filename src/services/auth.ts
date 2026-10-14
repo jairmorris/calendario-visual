@@ -1,67 +1,32 @@
 import { Usuario } from "../types";
-
-const AUTH_STORAGE_KEY = "sgp_current_user";
-const USERS_DB_KEY = "sgp_users_db";
-
-const INITIAL_USERS: Usuario[] = [
-  {
-    id: 1,
-    username: "Administrador",
-    nombre: "Administrador de Operaciones",
-    password: "admin",
-    rol: "admin",
-    departamento: "Departamento de Operaciones",
-    activo: true
-  },
-  {
-    id: 2,
-    username: "Ventas",
-    nombre: "Equipo Comercial y Ventas",
-    password: "ventas",
-    rol: "lector",
-    departamento: "Departamento de Ventas",
-    activo: true
-  }
-];
+import { api, getToken, setToken } from "./api";
 
 export class AuthService {
-  public static getUsers(): Usuario[] {
-    const data = localStorage.getItem(USERS_DB_KEY);
-    if (!data) {
-      localStorage.setItem(USERS_DB_KEY, JSON.stringify(INITIAL_USERS));
-      return INITIAL_USERS;
-    }
+  /** Devuelve el usuario o null si las credenciales son incorrectas. Lanza si el servidor no responde o bloquea. */
+  public static async login(username: string, pass: string): Promise<Usuario | null> {
     try {
-      return JSON.parse(data);
-    } catch {
-      return INITIAL_USERS;
+      const r = await api<{ token: string; usuario: Usuario }>("/login", { method: "POST", body: { username, password: pass } });
+      setToken(r.token);
+      return r.usuario;
+    } catch (e: any) {
+      if (e.status === 401) return null;
+      throw e;
     }
   }
 
-  public static login(username: string, pass: string): Usuario | null {
-    const users = this.getUsers();
-    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === pass && u.activo);
-    if (user) {
-      const userSafe = { ...user };
-      delete userSafe.password;
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userSafe));
-      return userSafe;
-    }
-    return null;
-  }
-
-  public static getCurrentUser(): Usuario | null {
-    const data = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!data) return null;
+  /** Recupera la sesion guardada validandola contra el servidor. */
+  public static async restoreSession(): Promise<Usuario | null> {
+    if (!getToken()) return null;
     try {
-      return JSON.parse(data);
+      return await api<Usuario>("/me");
     } catch {
+      setToken(null);
       return null;
     }
   }
 
-  public static logout(): void {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+  public static async logout(): Promise<void> {
+    try { await api("/logout", { method: "POST" }); } catch { /* da igual */ }
+    setToken(null);
   }
 }
-

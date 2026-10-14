@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Servicio, Personal, Usuario } from "./types";
 import { StorageService } from "./services/storage";
 import { AuthService } from "./services/auth";
+import { setSesionExpiradaHandler } from "./services/api";
 import { Sidebar } from "./components/Sidebar";
 import { DashboardView } from "./components/Dashboard/DashboardView";
 import { CalendarView } from "./components/Calendar/CalendarView";
@@ -24,27 +25,51 @@ export const App: React.FC = () => {
   const [servicioAEditar, setServicioAEditar] = useState<Servicio | null>(null);
   const [servicioSeleccionado, setServicioSeleccionado] = useState<Servicio | null>(null);
 
+  const [cargando, setCargando] = useState(true);
+
+  // Copia los datos de la cache al estado de React (la cache ya fue cargada del servidor)
   const refreshData = () => {
-    setServicios(StorageService.getServicios());
-    setPersonal(StorageService.getPersonal());
+    setServicios([...StorageService.getServicios()]);
+    setPersonal([...StorageService.getPersonal()]);
+  };
+
+  // Trae los datos del servidor; en segundo plano no molesta si falla un ciclo
+  const sincronizar = async () => {
+    try {
+      await StorageService.load();
+      refreshData();
+    } catch { /* se reintenta en el siguiente ciclo */ }
+  };
+
+  const cerrarSesionLocal = () => {
+    StorageService.clear();
+    refreshData();
+    setUsuarioActual(null);
   };
 
   useEffect(() => {
-    StorageService.initialize();
-    const session = AuthService.getCurrentUser();
-    if (session) {
-      setUsuarioActual(session);
-    }
-    refreshData();
+    setSesionExpiradaHandler(cerrarSesionLocal);
+    AuthService.restoreSession().then(u => {
+      setUsuarioActual(u);
+      setCargando(false);
+    });
   }, []);
+
+  // Con sesion: cargar datos y refrescar cada 30 s para ver los cambios de los demas
+  useEffect(() => {
+    if (!usuarioActual) return;
+    sincronizar();
+    const id = setInterval(sincronizar, 30000);
+    return () => clearInterval(id);
+  }, [usuarioActual]);
 
   const handleLoginSuccess = (u: Usuario) => {
     setUsuarioActual(u);
   };
 
-  const handleLogout = () => {
-    AuthService.logout();
-    setUsuarioActual(null);
+  const handleLogout = async () => {
+    await AuthService.logout();
+    cerrarSesionLocal();
   };
 
   const handleOpenNuevo = () => {
@@ -58,6 +83,8 @@ export const App: React.FC = () => {
     setServicioAEditar(serv);
     setIsNuevoModalOpen(true);
   };
+
+  if (cargando) return null;
 
   if (!usuarioActual) {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;

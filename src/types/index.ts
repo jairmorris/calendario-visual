@@ -25,6 +25,7 @@ export interface Personal {
   cargo: string;
   especialidad: string;
   telefono?: string;
+  email?: string;
   activo: boolean;
 }
 

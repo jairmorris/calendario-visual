@@ -1,0 +1,9 @@
+services:
+  calendario:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data          # base de datos: queda en el NAS, no se pierde al actualizar
+    env_file: .env

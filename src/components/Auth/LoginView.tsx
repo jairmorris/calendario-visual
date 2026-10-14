@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Usuario } from "../../types";
 import { AuthService } from "../../services/auth";
-import { Wrench, Lock, User, AlertCircle, Building2, UserCheck } from "lucide-react";
+import { Wrench, Lock, User, AlertCircle } from "lucide-react";
 
 interface Props {
   onLoginSuccess: (usuario: Usuario) => void;
@@ -12,23 +12,20 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    const usuario = AuthService.login(username, password);
-    if (usuario) {
-      onLoginSuccess(usuario);
-    } else {
-      setError("Usuario o contrasena incorrectos.");
+    try {
+      const usuario = await AuthService.login(username, password);
+      if (usuario) {
+        onLoginSuccess(usuario);
+      } else {
+        setError("Usuario o contrasena incorrectos.");
+      }
+    } catch (err: any) {
+      setError(err.status === 429 ? err.message : "No se pudo conectar con el servidor.");
     }
-  };
-
-  const handleQuickDemo = (demoUser: string, demoPass: string) => {
-    setUsername(demoUser);
-    setPassword(demoPass);
-    const u = AuthService.login(demoUser, demoPass);
-    if (u) onLoginSuccess(u);
   };
 
   return (
@@ -89,34 +86,6 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess }) => {
             Ingresar al Sistema
           </button>
 
-          <div className="pt-4 border-t border-slate-100 space-y-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase text-center">Accesos Directos por Perfil</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("Administrador", "admin")}
-                className="p-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl text-blue-900 font-medium text-left space-y-0.5"
-              >
-                <div className="flex items-center space-x-1">
-                  <UserCheck className="w-4 h-4 text-blue-600" />
-                  <span className="font-bold">Administrador</span>
-                </div>
-                <p className="text-[10px] text-blue-700">Edicion / Operaciones</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("Ventas", "ventas")}
-                className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-emerald-900 font-medium text-left space-y-0.5"
-              >
-                <div className="flex items-center space-x-1">
-                  <Building2 className="w-4 h-4 text-emerald-600" />
-                  <span className="font-bold">Ventas</span>
-                </div>
-                <p className="text-[10px] text-emerald-700">Solo Lectura / Consulta</p>
-              </button>
-            </div>
-          </div>
         </form>
       </div>
     </div>

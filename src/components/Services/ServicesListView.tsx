@@ -58,9 +58,9 @@ export const ServicesListView: React.FC<Props> = ({
     return true;
   });
 
-  const handleDelete = (id: number, codigo: string) => {
+  const handleDelete = async (id: number, codigo: string) => {
     if (confirm(`Desea eliminar permanentemente el servicio ${codigo}?`)) {
-      StorageService.deleteServicio(id);
+      await StorageService.deleteServicio(id);
       onRefresh();
     }
   };
