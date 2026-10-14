@@ -33,6 +33,16 @@ app.get("/api/me", auth.requireAuth, (req, res) => res.json(req.usuario));
 // Todo lo demas de /api requiere sesion
 app.use("/api", auth.requireAuth);
 
+// ---------- Usuarios (solo admin) ----------
+app.get("/api/usuarios", auth.requireAdmin, (req, res) => res.json(auth.listarUsuarios()));
+
+app.put("/api/usuarios/:id/password", auth.requireAdmin, (req, res) => {
+  const tokenActual = (req.headers.authorization || "").replace(/^Bearer /, "");
+  const r = auth.cambiarPasswordDe(Number(req.params.id), req.body?.nueva, tokenActual);
+  if (r.error) return res.status(r.status).json({ error: r.error });
+  res.json({ ok: true });
+});
+
 // ---------- Lectura ----------
 app.get("/api/servicios", (req, res) => res.json(store.data().servicios));
 app.get("/api/personal", (req, res) => res.json(store.data().personal));

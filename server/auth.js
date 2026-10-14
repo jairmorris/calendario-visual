@@ -57,6 +57,23 @@ function logout(req) {
   }
 }
 
+// Solo la invoca un admin (ver ruta). Cierra las sesiones del usuario afectado,
+// salvo la del propio admin si se esta cambiando la clave a si mismo.
+function cambiarPasswordDe(userId, nueva, tokenActual) {
+  if (typeof nueva !== "string" || nueva.length < 8) return { error: "La nueva contrasena debe tener al menos 8 caracteres.", status: 400 };
+  const db = store.data();
+  const u = db.usuarios.find(x => x.id === userId);
+  if (!u) return { error: "Usuario no encontrado", status: 404 };
+  u.password = store.hashPassword(nueva);
+  for (const [token, ses] of Object.entries(db.sesiones)) {
+    if (ses.userId === u.id && token !== tokenActual) delete db.sesiones[token];
+  }
+  store.save();
+  return { ok: true, usuario: u.username };
+}
+
+const listarUsuarios = () => store.data().usuarios.map(publico);
+
 function requireAuth(req, res, next) {
   const u = usuarioDeRequest(req);
   if (!u) return res.status(401).json({ error: "No autenticado" });
@@ -69,4 +86,4 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { login, logout, usuarioDeRequest, requireAuth, requireAdmin };
+module.exports = { cambiarPasswordDe, listarUsuarios, login, logout, usuarioDeRequest, requireAuth, requireAdmin };

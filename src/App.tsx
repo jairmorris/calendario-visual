@@ -13,7 +13,8 @@ import { ReportsView } from "./components/Reports/ReportsView";
 import { NuevoServicioModal } from "./components/Services/NuevoServicioModal";
 import { DetalleServicioModal } from "./components/Services/DetalleServicioModal";
 import { LoginView } from "./components/Auth/LoginView";
-import { Bell, ShieldCheck, Eye } from "lucide-react";
+import { CambiarPasswordModal } from "./components/Auth/CambiarPasswordModal";
+import { Bell, ShieldCheck, Eye, KeyRound } from "lucide-react";
 
 export const App: React.FC = () => {
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null);
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
   const [servicioSeleccionado, setServicioSeleccionado] = useState<Servicio | null>(null);
 
   const [cargando, setCargando] = useState(true);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   // Copia los datos de la cache al estado de React (la cache ya fue cargada del servidor)
   const refreshData = () => {
@@ -148,6 +150,15 @@ export const App: React.FC = () => {
                 </p>
                 <p className="text-[11px] text-slate-500">{usuarioActual.departamento}</p>
               </div>
+              {rolActual === "admin" && (
+                <button
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  title="Cambiar contrasenas de usuarios"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                >
+                  <KeyRound className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -215,6 +226,8 @@ export const App: React.FC = () => {
           servicioEditar={servicioAEditar}
         />
       )}
+
+      {rolActual === "admin" && <CambiarPasswordModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} />}
 
       <DetalleServicioModal
         servicio={servicioSeleccionado}
