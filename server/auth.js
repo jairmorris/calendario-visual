@@ -19,7 +19,10 @@ function registrarFallo(ip) {
   else r.n++;
 }
 
-const publico = u => ({ id: u.id, username: u.username, nombre: u.nombre, rol: u.rol, departamento: u.departamento, activo: u.activo });
+const publico = u => ({
+  id: u.id, username: u.username, nombre: u.nombre, rol: u.rol, departamento: u.departamento, activo: u.activo,
+  email: u.email || "", avisos: u.avisos || { resumen: false, alertas: false }
+});
 
 function login(username, password, ip) {
   if (bloqueado(ip)) return { error: "Demasiados intentos. Espere unos minutos.", status: 429 };
@@ -74,6 +77,74 @@ function cambiarPasswordDe(userId, nueva, tokenActual) {
 
 const listarUsuarios = () => store.data().usuarios.map(publico);
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const admins = db => db.usuarios.filter(u => u.activo && u.rol === "admin");
+
+// Valida y copia solo los campos permitidos. Devuelve { error } o { campos }.
+function camposUsuario(d, db, idActual) {
+  const c = {};
+  if (d.username !== undefined) {
+    const n = String(d.username).trim();
+    if (!n) return { error: "El nombre de usuario es obligatorio." };
+    if (db.usuarios.some(u => u.id !== idActual && u.username.toLowerCase() === n.toLowerCase())) return { error: "Ese nombre de usuario ya existe." };
+    c.username = n;
+  }
+  if (d.nombre !== undefined) c.nombre = String(d.nombre).trim() || undefined;
+  if (d.departamento !== undefined) c.departamento = String(d.departamento).trim();
+  if (d.rol !== undefined) {
+    if (!["admin", "lector"].includes(d.rol)) return { error: "Rol invalido." };
+    c.rol = d.rol;
+  }
+  if (d.activo !== undefined) c.activo = Boolean(d.activo);
+  if (d.email !== undefined) {
+    const e = String(d.email).trim();
+    if (e && !EMAIL_RE.test(e)) return { error: "El email no es valido." };
+    c.email = e;
+  }
+  if (d.avisos !== undefined) c.avisos = { resumen: Boolean(d.avisos?.resumen), alertas: Boolean(d.avisos?.alertas) };
+  return { campos: c };
+}
+
+function crearUsuario(d) {
+  const db = store.data();
+  if (typeof d.password !== "string" || d.password.length < 8) return { error: "La contrasena debe tener al menos 8 caracteres.", status: 400 };
+  const r = camposUsuario({ rol: "lector", activo: true, avisos: {}, email: "", departamento: "", ...d }, db, null);
+  if (r.error) return { error: r.error, status: 400 };
+  if (!r.campos.username) return { error: "El nombre de usuario es obligatorio.", status: 400 };
+  const u = {
+    id: db.usuarios.length ? Math.max(...db.usuarios.map(x => x.id)) + 1 : 1,
+    nombre: r.campos.username,
+    ...Object.fromEntries(Object.entries(r.campos).filter(([, v]) => v !== undefined)),
+    password: store.hashPassword(d.password)
+  };
+  db.usuarios.push(u);
+  store.save();
+  return { usuario: publico(u) };
+}
+
+function actualizarUsuario(id, d, idQuienEdita) {
+  const db = store.data();
+  const u = db.usuarios.find(x => x.id === id);
+  if (!u) return { error: "Usuario no encontrado", status: 404 };
+  const r = camposUsuario(d, db, id);
+  if (r.error) return { error: r.error, status: 400 };
+
+  const quedaAdminActivo = (r.campos.rol ?? u.rol) === "admin" && (r.campos.activo ?? u.activo);
+  if (u.rol === "admin" && u.activo && !quedaAdminActivo) {
+    if (id === idQuienEdita) return { error: "No puede quitarse a si mismo el acceso de administrador.", status: 400 };
+    if (admins(db).length <= 1) return { error: "Debe existir al menos un administrador activo.", status: 400 };
+  }
+
+  const desactiva = r.campos.activo === false && u.activo;
+  Object.assign(u, Object.fromEntries(Object.entries(r.campos).filter(([, v]) => v !== undefined)));
+  // Cambiar rol o desactivar invalida las sesiones abiertas de esa persona
+  if (desactiva || r.campos.rol) {
+    for (const [token, s] of Object.entries(db.sesiones)) if (s.userId === id) delete db.sesiones[token];
+  }
+  store.save();
+  return { usuario: publico(u) };
+}
+
 function requireAuth(req, res, next) {
   const u = usuarioDeRequest(req);
   if (!u) return res.status(401).json({ error: "No autenticado" });
@@ -86,4 +157,4 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { cambiarPasswordDe, listarUsuarios, login, logout, usuarioDeRequest, requireAuth, requireAdmin };
+module.exports = { crearUsuario, actualizarUsuario, cambiarPasswordDe, listarUsuarios, login, logout, usuarioDeRequest, requireAuth, requireAdmin };

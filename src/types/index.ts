@@ -16,6 +16,8 @@ export interface Usuario {
   password?: string;
   rol: RolUsuario;
   departamento: string;
+  email?: string;
+  avisos?: { resumen: boolean; alertas: boolean };
   activo: boolean;
 }
 

@@ -172,7 +172,7 @@ export const ReportsView: React.FC<Props> = ({ servicios, personal }) => {
           </thead>
           <tbody className="divide-y divide-slate-200">
             {serviciosReporte.map(serv => (
-              <tr key={serv.id} className="hover:bg-slate-50">
+              <tr key={serv.id} className="hover:bg-slate-50 print:break-inside-avoid">
                 <td className="p-2.5 font-bold text-slate-900">{serv.codigo}</td>
                 <td className="p-2.5 font-semibold text-slate-800">{serv.cliente_nombre}</td>
                 <td className="p-2.5 text-slate-600">{serv.ubicacion}</td>

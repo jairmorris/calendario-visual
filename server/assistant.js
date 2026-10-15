@@ -4,17 +4,64 @@
 //   - Recordatorio al tecnico poco antes de un servicio
 //   - Aviso inmediato al tecnico cuando le asignan un servicio (via onServicioGuardado)
 const store = require("./db");
-const { enviar } = require("./mailer");
+const mailer = require("./mailer");
 
 const lista = v => (v || "").split(",").map(s => s.trim()).filter(Boolean);
-const cfg = () => ({
-  resumen: lista(process.env.DESTINATARIOS_RESUMEN),
-  alertas: lista(process.env.DESTINATARIOS_ALERTAS),
-  horaResumen: process.env.HORA_RESUMEN || "07:30",
-  recordatorioHoras: Number(process.env.RECORDATORIO_HORAS) || 2,
-  duracionHoras: Number(process.env.DURACION_HORAS) || 4,
-  urlApp: process.env.URL_APP || ""
-});
+const unicos = arr => [...new Set(arr.map(e => e.toLowerCase()))];
+
+// Destinatarios = usuarios con email que activaron el aviso + lo que haya en el .env
+const destinatarios = tipo => unicos([
+  ...store.data().usuarios.filter(u => u.activo && u.email && u.avisos?.[tipo]).map(u => u.email),
+  ...lista(process.env[tipo === "resumen" ? "DESTINATARIOS_RESUMEN" : "DESTINATARIOS_ALERTAS"])
+]);
+
+// Los ajustes guardados desde la app mandan; si no hay, se usa el .env y luego los valores por defecto
+const cfg = () => {
+  const c = store.data().config || {};
+  return {
+    resumen: destinatarios("resumen"),
+    alertas: destinatarios("alertas"),
+    horaResumen: c.horaResumen || process.env.HORA_RESUMEN || "07:30",
+    recordatorioHoras: Number(c.recordatorioHoras ?? process.env.RECORDATORIO_HORAS) || 2,
+    duracionHoras: Number(c.duracionHoras ?? process.env.DURACION_HORAS) || 4,
+    urlApp: process.env.URL_APP || ""
+  };
+};
+
+const configEditable = () => {
+  const { horaResumen, recordatorioHoras, duracionHoras } = cfg();
+  return { horaResumen, recordatorioHoras, duracionHoras };
+};
+
+function guardarConfig(d) {
+  const nueva = {};
+  if (d.horaResumen !== undefined) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(d.horaResumen)) return { error: "La hora debe tener formato HH:MM." };
+    nueva.horaResumen = d.horaResumen;
+  }
+  for (const k of ["recordatorioHoras", "duracionHoras"]) {
+    if (d[k] === undefined) continue;
+    const n = Number(d[k]);
+    if (!(n >= 1 && n <= 72)) return { error: "Las horas deben estar entre 1 y 72." };
+    nueva[k] = n;
+  }
+  store.data().config = { ...store.data().config, ...nueva };
+  store.save();
+  return { config: configEditable() };
+}
+
+// Envia y deja constancia (ultimos 50) para mostrarlo en el panel del asistente
+async function enviar(opts) {
+  const ok = await mailer.enviar(opts);
+  const to = [].concat(opts.to).filter(Boolean);
+  if (to.length) {
+    const reg = store.data().registro;
+    reg.unshift({ fecha: new Date().toISOString(), asunto: opts.subject, para: to, ok, simulado: !mailer.configurado });
+    reg.length = Math.min(reg.length, 50);
+    store.save();
+  }
+  return ok;
+}
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ACTIVO = new Set(["programado", "en_curso"]);
@@ -201,4 +248,4 @@ function iniciar() {
   console.log(`[asistente] Activo. Resumen diario ${cfg().horaResumen}, alertas cada 5 min.`);
 }
 
-module.exports = { iniciar, onServicioGuardado, construirResumen, enviarResumenDiario, revisarAlertas };
+module.exports = { configEditable, guardarConfig, iniciar, onServicioGuardado, construirResumen, enviarResumenDiario, revisarAlertas };

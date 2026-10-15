@@ -13,6 +13,8 @@ import { ReportsView } from "./components/Reports/ReportsView";
 import { NuevoServicioModal } from "./components/Services/NuevoServicioModal";
 import { DetalleServicioModal } from "./components/Services/DetalleServicioModal";
 import { LoginView } from "./components/Auth/LoginView";
+import { AsistenteView } from "./components/Asistente/AsistenteView";
+import { UsuariosView } from "./components/Usuarios/UsuariosView";
 import { CambiarPasswordModal } from "./components/Auth/CambiarPasswordModal";
 import { Bell, ShieldCheck, Eye, KeyRound } from "lucide-react";
 
@@ -99,7 +101,7 @@ export const App: React.FC = () => {
   ).length;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100 font-sans text-slate-900">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-100 font-sans text-slate-900 print:block print:h-auto print:w-auto print:overflow-visible print:bg-white">
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -108,8 +110,8 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-xs">
+      <div className="flex-1 flex flex-col h-full overflow-hidden print:block print:h-auto print:overflow-visible">
+        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-xs print:hidden">
           <div>
             <h2 className="text-base font-bold text-slate-800 capitalize">
               {currentTab === "dashboard" && "Dashboard General y KPIs"}
@@ -118,6 +120,8 @@ export const App: React.FC = () => {
               {currentTab === "services" && "Gestion y Registro de Servicios"}
               {currentTab === "staff" && "Gestion y Disponibilidad de Tecnicos"}
               {currentTab === "reports" && "Generacion de Reportes"}
+              {currentTab === "asistente" && "Asistente de Avisos"}
+              {currentTab === "usuarios" && "Gestion de Usuarios"}
             </h2>
             <p className="text-xs text-slate-500">Servidor Privado local - {usuarioActual.departamento}</p>
           </div>
@@ -163,7 +167,7 @@ export const App: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-6 overflow-y-auto print:overflow-visible print:p-0">
           {currentTab === "dashboard" && (
             <DashboardView
               servicios={servicios}
@@ -207,6 +211,17 @@ export const App: React.FC = () => {
               onRefresh={refreshData}
               rolActual={rolActual}
             />
+          )}
+
+          {currentTab === "asistente" && (
+            <AsistenteView
+              rolActual={rolActual}
+              onSelectServicio={setServicioSeleccionado}
+            />
+          )}
+
+          {currentTab === "usuarios" && rolActual === "admin" && (
+            <UsuariosView usuarioActual={usuarioActual} />
           )}
 
           {currentTab === "reports" && (

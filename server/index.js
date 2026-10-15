@@ -36,6 +36,18 @@ app.use("/api", auth.requireAuth);
 // ---------- Usuarios (solo admin) ----------
 app.get("/api/usuarios", auth.requireAdmin, (req, res) => res.json(auth.listarUsuarios()));
 
+app.post("/api/usuarios", auth.requireAdmin, (req, res) => {
+  const r = auth.crearUsuario(req.body || {});
+  if (r.error) return res.status(r.status).json({ error: r.error });
+  res.status(201).json(r.usuario);
+});
+
+app.put("/api/usuarios/:id", auth.requireAdmin, (req, res) => {
+  const r = auth.actualizarUsuario(Number(req.params.id), req.body || {}, req.usuario.id);
+  if (r.error) return res.status(r.status).json({ error: r.error });
+  res.json(r.usuario);
+});
+
 app.put("/api/usuarios/:id/password", auth.requireAdmin, (req, res) => {
   const tokenActual = (req.headers.authorization || "").replace(/^Bearer /, "");
   const r = auth.cambiarPasswordDe(Number(req.params.id), req.body?.nueva, tokenActual);
@@ -84,6 +96,18 @@ app.delete("/api/personal/:id", auth.requireAdmin, (req, res) => {
 
 // ---------- Asistente ----------
 app.get("/api/asistente/resumen", (req, res) => res.json(assistant.construirResumen()));
+
+app.get("/api/asistente/estado", (req, res) => res.json({
+  smtp: mailer.configurado,
+  config: assistant.configEditable(),
+  registro: store.data().registro
+}));
+
+app.put("/api/asistente/config", auth.requireAdmin, (req, res) => {
+  const r = assistant.guardarConfig(req.body || {});
+  if (r.error) return res.status(400).json({ error: r.error });
+  res.json(r.config);
+});
 
 app.post("/api/asistente/enviar-resumen", auth.requireAdmin, async (req, res) => {
   await assistant.enviarResumenDiario();

@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, Calendar, Wrench, Users, FileText, PlusCircle, Eye, LogOut, UserCheck } from "lucide-react";
+import { LayoutDashboard, Calendar, Wrench, Users, FileText, PlusCircle, Eye, LogOut, UserCheck, BellRing, ShieldCheck } from "lucide-react";
 import { Usuario } from "../types";
 
 interface SidebarProps {
@@ -24,10 +24,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: "services", label: "Gestion de Servicios", icon: Wrench },
     { id: "staff", label: "Carga / Personal", icon: Users },
     { id: "reports", label: "Reportes y Exportar", icon: FileText },
+    { id: "asistente", label: "Asistente de Avisos", icon: BellRing },
+    ...(usuarioActual.rol === "admin" ? [{ id: "usuarios", label: "Usuarios", icon: ShieldCheck }] : []),
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col justify-between shrink-0 shadow-xl border-r border-slate-800">
+    <aside className="print:hidden w-64 bg-slate-900 text-slate-100 flex flex-col justify-between shrink-0 shadow-xl border-r border-slate-800">
       <div>
         <div className="p-5 border-b border-slate-800 flex items-center space-x-3">
           <div className="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/30 text-white">

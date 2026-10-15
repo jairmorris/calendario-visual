@@ -30,8 +30,8 @@ function initialUsers() {
     console.warn("[seguridad] ADMIN_PASSWORD / VENTAS_PASSWORD no definidas: usando contrasenas por defecto. Cambielas.");
   }
   return [
-    { id: 1, username: "Administrador", nombre: "Administrador de Operaciones", password: hashPassword(adminPass || "admin"), rol: "admin", departamento: "Departamento de Operaciones", activo: true },
-    { id: 2, username: "Ventas", nombre: "Equipo Comercial y Ventas", password: hashPassword(ventasPass || "ventas"), rol: "lector", departamento: "Departamento de Ventas", activo: true }
+    { id: 1, username: "Administrador", nombre: "Administrador de Operaciones", password: hashPassword(adminPass || "admin"), rol: "admin", departamento: "Departamento de Operaciones", email: "", avisos: { resumen: false, alertas: false }, activo: true },
+    { id: 2, username: "Ventas", nombre: "Equipo Comercial y Ventas", password: hashPassword(ventasPass || "ventas"), rol: "lector", departamento: "Departamento de Ventas", email: "", avisos: { resumen: false, alertas: false }, activo: true }
   ];
 }
 
@@ -41,6 +41,12 @@ function load() {
     db = JSON.parse(fs.readFileSync(FILE, "utf8"));
     db.avisos ||= {};
     db.sesiones ||= {};
+    db.config ||= {};
+    db.registro ||= [];
+    for (const u of db.usuarios) {
+      u.email ||= "";
+      u.avisos ||= { resumen: false, alertas: false };
+    }
   } else {
     db = {
       usuarios: initialUsers(),
@@ -48,7 +54,9 @@ function load() {
       clientes: seed.CLIENTES,
       servicios: seed.servicios(),
       sesiones: {},
-      avisos: {} // claves de avisos ya enviados, para no repetirlos
+      avisos: {}, // claves de avisos ya enviados, para no repetirlos
+      config: {}, // ajustes del asistente editables desde la app (si falta, se usa el .env)
+      registro: [] // ultimos correos enviados por el asistente
     };
     save();
   }

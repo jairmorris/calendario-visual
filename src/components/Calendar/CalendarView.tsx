@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
+import { MesContinuo, MesContinuoHandle } from "./MesContinuo";
 import { Servicio } from "../../types";
 import { EstadoBadge, PrioridadBadge } from "../Common/EstadoBadge";
 import { 
@@ -7,7 +8,7 @@ import {
 } from "lucide-react";
 import { 
   format, addMonths, subMonths, startOfWeek, endOfWeek, 
-  startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, 
+  startOfMonth, eachDayOfInterval, 
   isSameDay, isToday, addDays, subDays 
 } from "date-fns";
 import { es } from "date-fns/locale";
@@ -24,25 +25,29 @@ export const CalendarView: React.FC<Props> = ({ servicios, onSelectServicio }) =
   const [currentDate, setCurrentDate] = useState(new Date());
   const [vista, setVista] = useState<VistaCalendario>("mes");
 
+  const mesRef = useRef<MesContinuoHandle>(null);
+
   const nextPeriod = () => {
-    if (vista === "mes") setCurrentDate(addMonths(currentDate, 1));
+    if (vista === "mes") mesRef.current?.irAFecha(startOfMonth(addMonths(currentDate, 1)));
     else if (vista === "semana") setCurrentDate(addDays(currentDate, 7));
     else setCurrentDate(addDays(currentDate, 1));
   };
 
   const prevPeriod = () => {
-    if (vista === "mes") setCurrentDate(subMonths(currentDate, 1));
+    if (vista === "mes") mesRef.current?.irAFecha(startOfMonth(subMonths(currentDate, 1)));
     else if (vista === "semana") setCurrentDate(subDays(currentDate, 7));
     else setCurrentDate(subDays(currentDate, 1));
   };
 
-  const todayPeriod = () => setCurrentDate(new Date());
+  const todayPeriod = () => {
+    if (vista === "mes") mesRef.current?.irAFecha(new Date(), { semanasArriba: 1 });
+    else setCurrentDate(new Date());
+  };
 
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const daysInMonth = eachDayOfInterval({ start: startDate, end: endDate });
+  const verDia = (dia: Date) => {
+    setCurrentDate(dia);
+    setVista("dia");
+  };
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -53,7 +58,7 @@ export const CalendarView: React.FC<Props> = ({ servicios, onSelectServicio }) =
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-7rem)] min-h-[420px]">
       <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4 bg-slate-50">
         <div className="flex items-center space-x-3">
           <h2 className="text-lg font-bold text-slate-900 capitalize min-w-[200px]">
@@ -130,69 +135,22 @@ export const CalendarView: React.FC<Props> = ({ servicios, onSelectServicio }) =
       </div>
 
       {vista === "mes" && (
-        <div className="flex-1 grid grid-cols-7 auto-rows-fr gap-px bg-slate-200">
-          {["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"].map((d, i) => (
-            <div key={i} className="bg-slate-100 p-2 text-center text-xs font-bold text-slate-600 uppercase">
-              {d}
-            </div>
-          ))}
-
-          {daysInMonth.map((day, idx) => {
-            const dayServicios = getServiciosPorDia(day);
-            const isCurrentMonth = isSameMonth(day, monthStart);
-            const isDayToday = isToday(day);
-
-            return (
-              <div
-                key={idx}
-                className={`min-h-[100px] p-2 flex flex-col justify-between transition-colors ${
-                  isCurrentMonth ? "bg-white" : "bg-slate-50/50 text-slate-400"
-                } ${isDayToday ? "ring-2 ring-blue-500 ring-inset bg-blue-50/20" : ""}`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span
-                    className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ${
-                      isDayToday ? "bg-blue-600 text-white" : "text-slate-700"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
-                  {dayServicios.length > 0 && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                      {dayServicios.length}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-1 flex-1 overflow-y-auto max-h-[85px] scrollbar-thin">
-                  {dayServicios.map(serv => {
-                    const isAtrasado = serv.estado === "programado" && new Date(serv.fecha_programada) < new Date();
-                    
-                    let colorBg = "bg-blue-50 border-blue-200 text-blue-900 hover:bg-blue-100";
-                    if (isAtrasado) colorBg = "bg-rose-50 border-rose-300 text-rose-900 hover:bg-rose-100 font-medium";
-                    else if (serv.estado === "en_curso") colorBg = "bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100";
-                    else if (serv.estado === "completado" || serv.estado === "completado_atraso") colorBg = "bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100";
-
-                    return (
-                      <div
-                        key={serv.id}
-                        onClick={() => onSelectServicio(serv)}
-                        className={`p-1 rounded border text-left cursor-pointer transition-all text-[11px] ${colorBg}`}
-                      >
-                        <div className="flex items-center justify-between font-bold truncate">
-                          <span>{serv.codigo}</span>
-                          <span className="text-[10px] opacity-75">
-                            {format(new Date(serv.fecha_programada), "HH:mm")}
-                          </span>
-                        </div>
-                        <div className="truncate text-slate-700 font-medium">{serv.cliente_nombre}</div>
-                      </div>
-                    );
-                  })}
-                </div>
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="grid grid-cols-7 gap-px bg-slate-200 border-b border-slate-200 shrink-0">
+            {["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"].map(d => (
+              <div key={d} className="bg-slate-100 py-1 text-center text-[10px] font-bold text-slate-600 uppercase tracking-wide">
+                {d}
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <MesContinuo
+            ref={mesRef}
+            servicios={servicios}
+            fechaInicial={currentDate}
+            onFechaVisible={setCurrentDate}
+            onSelectServicio={onSelectServicio}
+            onVerDia={verDia}
+          />
         </div>
       )}
 
